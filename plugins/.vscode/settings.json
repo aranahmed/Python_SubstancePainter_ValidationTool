@@ -1,0 +1,9 @@
+{
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.autoImportCompletions": true,
+
+    "python.analysis.extraPaths": [
+        "/Applications/Adobe Substance 3D Painter.app/Contents/Resources/python/modules",
+       
+    ]
+}
