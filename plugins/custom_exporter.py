@@ -47,12 +47,24 @@ import substance_painter.event
 import substance_painter.textureset
 
 from PySide2 import QtCore, QtGui
-from PySide2.QtWidgets import QApplication, QWidget, QAction,  QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QLabel, QPushButton, QGridLayout, QTableWidget, QTableWidgetItem, QDialog, QDialogButtonBox
+from PySide2.QtWidgets import QApplication, QListWidget, QWidget, QAction, QLineEdit , QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QMenu, QLabel, QPushButton, QGridLayout, QTableWidget, QTableWidgetItem, QDialog, QDialogButtonBox
+from PySide2.QtCore import QEvent, Qt
 
 # Global variable
 custom_exporter = None
 personal_checkbox = None
 custom_exporter_obj_name = "custom_exporter"
+
+# Lists to populate the Texset Rename editor : Extension Task - Make these lists be populated from a JSON / Spreadsheet thing
+asset_types_acronyms = ['PROP', 'WPN', 'CHAR']
+
+asset_detail_01_props = ['CHR','TBL', 'LMP', 'WIN']
+asset_detail_01_wpns = ['SWD','BOW', 'RFL', 'EXP']
+asset_detail_01_chars = ['PLR', 'ENM', 'CIV']
+
+asset_detail_02_props = ['S','M', 'L']
+asset_detail_02_wpns = ['COM','RAR', 'EPC']
+asset_detail_02_chars = ['ML','FL', 'NB']
 
 class CustomExporter:
     def __init__(self):
@@ -162,6 +174,30 @@ class CustomExporter:
         # Initialize tex set table IMPORTANT
         self.init_texset_table()
         self.main_layout.addWidget(self.texset_table)
+
+        # List Widget Init
+        # layout = QVBoxLayout()
+        # self.menu_widget = QWidget()
+        # self.menu_widget.setLayout(layout)
+
+        self.list_widget = QListWidget()
+        # self.list_widget.addItems(('Rename'), ('Close'))
+        # layout.addWidget(self.list_widget)
+        
+        # self.widget.installEventFilter(self.main_layout)
+
+        # Right click menu
+        self.rename_action  = QAction('Rename', self.list_widget)
+        self.context_menu = QMenu(self.list_widget)
+        self.context_menu.addAction(self.rename_action)
+        
+        #self.context_menu.show()
+
+        self.context_menu.popup(QtGui.QCursor.pos())
+        self.texset_table.addAction(self.rename_action)
+
+        #self.main_layout.addWidget(self.context_menu)
+
         
         # column_count=5
         # self.table_widget.columnCount()
@@ -173,10 +209,27 @@ class CustomExporter:
         
         self.main_layout.addWidget(self.export_button)
 
+
+        
+
+        
+        #if self.textset_uv_tiles is not None:
+
         if substance_painter.project.is_open():
             self.fill_texset_table()
             settings = QtCore.QSettings()
             settings.setValue("dialogue_window_checkbox_state", QtCore.Qt.Unchecked) 
+
+    # def event_filter(self, source, event):
+    #     if event.type() == QEvent.ContextMenu and source is self.widget:
+    #         print(event)
+    #         print(source)
+    #         return True
+        
+    #     return super().event_filter(source, event)
+    
+    def contextMenuEvent(self, event):
+        self.context_menu.exec_(QtGui.QCursor.pos())
 
     def on_open_help_document(self, event):
         help_doc_path = os.path.join(self.file_dir, "Custom_Exporter_Help/Custom_Exporter_Help.pdf")
@@ -198,8 +251,11 @@ class CustomExporter:
          # Interaction signal emitter for button
         self.export_button.clicked.connect(self.on_export_requested)
 
-        
+        # Help icon action trigger
         self.help_action.triggered.connect(self.on_open_help_document)
+
+        # Right click menu Action triggger
+        #self.rename_action.triggered.connect(self.rename_slot)
 
         # When dropdown item changed
         #self.asset_type_cbbx.currentIndexChanged.connect(self.on_dropdown_state_changed)
@@ -224,13 +280,59 @@ class CustomExporter:
         self.texset_table.setColumnWidth(0, 40) # Export check box width
         self.texset_table.setColumnWidth(3, 85) # Texture Res width
         self.texset_table.setColumnWidth(4, 350) # Export path width
-        self.texset_table.setColumnWidth(5, 65) # Export path width
+        self.texset_table.setColumnWidth(5, 65) # Validation Icon width
+
+        self.texset_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.texset_table.customContextMenuRequested.connect(self.show_context_menu)
+
+    # def contextMenuEvent(self, event):
+    #     self.menu = QMenu(self)
+    #     self.rename_action  = QAction('Rename', self)
+    #     self.rename_action.triggered.connect(lambda: self.rename_slot(event))
+    #     self.menu.addAction(self.rename_action)
+    #     self.menu.popup(QtGui.QCursor.pos())
+       
+    def rename_slot(self, row, column):
+        # print(f"Rename clicked on row:{row}, column: {column}")
+        texset_rename_window = TexsetRenameWindow(self.textset_name)
+        if texset_rename_window.exec_():
+            print("Execute stuff for Popup Window")
+            new_asset_type, new_asset_detail_01, new_asset_detail_02, new_asset_id  = texset_rename_window.getData()
+            self.update_texture_set_name(row, new_asset_type,new_asset_detail_01, new_asset_detail_02, new_asset_id)
+        
+    
+        #self.context_menu.popup(QtGui.QCursor.pos())
+
+    def update_texture_set_name(self, row, asset_type, asset_detail_01, asset_detail_02, asset_id):
+        texset_name = self.textset_name
+
+        parts = texset_name.split('_')
+
+        # Sets the texture table item correctly but not on sub painter side...
+        self.texset_table.setItem(row,1, QTableWidgetItem(f"{asset_type}_{asset_detail_01}_{asset_detail_02}_{asset_id}"))
+        print(texset_name)
+
 
     def fill_texset_table(self):
         # Note : here we are creating an attribute, NOT a local variable
         # The self infront of our variable name means we can access across the script
         self.all_texture_sets = substance_painter.textureset.all_texture_sets()
         self.texset_table.setRowCount(len(self.all_texture_sets))
+
+        """
+        Checking whether texture sets is using the UV_Tiles Workflow
+        Plans: 
+            Extend this to then check if it can then add an additional suffix to the naming convention,
+              to specify which part of the UDIM tile this texture belongs to...
+        Goals: 
+            Understand difference between uv tiles and UDIMs
+        """
+        # if self.all_texture_sets[0].has_uv_tiles:
+        #     print("Has UV Tiles")
+
+    
+        # self.has_uv_tiles =  substance_painter.textureset.TextureSet.has_uv_tiles(material_id)
+        # print(self.has_uv_tiles)
 
         for i, texture_set in enumerate(self.all_texture_sets):
             # Use QCheckBox for the "Export" column    
@@ -240,7 +342,9 @@ class CustomExporter:
             self.texset_table.setCellWidget(i, 0, check_box)
 
             # Text set name column
-            self.texset_table.setItem(i, 1, QTableWidgetItem(texture_set.name()))
+            self.textset_name = texture_set.name()
+            self.texset_widget_item = QTableWidgetItem(self.textset_name)
+            self.texset_table.setItem(i, 1, self.texset_widget_item)
 
             # Use QComboBox for ShaderType column
             combo_box = QComboBox()
@@ -262,8 +366,38 @@ class CustomExporter:
 
         self.on_refresh_texset_table()
 
-    def validate_texture_sets(self):
+    def show_context_menu(self, pos):
+        # Get Item at clicked pos
+        item = self.texset_table.itemAt(pos)
 
+        if item:
+            row = item.row()
+            column = item.column()
+
+            if column == 1:
+                menu = QMenu(self.texset_table)
+
+                # Actions
+                rename_action = QAction('Rename', self.texset_table)
+
+                # Connect Action to slots
+                rename_action.triggered.connect(lambda: self.rename_slot(row, column))
+                rename_action.triggered.connect(self.get_info_from_selection(column))
+
+                # Add actions to menu
+                menu.addAction(rename_action)
+
+                # Show menu
+                menu.exec_(self.texset_table.viewport().mapToGlobal(pos))
+
+    def get_info_from_selection(self, column):
+        self.all_texture_sets = substance_painter.textureset.all_texture_sets()
+        # for i, texture_set_name in enumerate()
+
+
+        pass
+
+    def validate_texture_sets(self):
         self.texset_with_overbudget_res = [] 
         asset_type = self.asset_type_cbbx.currentText()
 
@@ -383,6 +517,7 @@ class CustomExporter:
 
     def on_refresh_texset_table(self):
         if substance_painter.project.is_open():
+            
             export_path_root = self.build_root_export_path()
             if self.all_texture_sets is not None:
                 for i, texture_set in enumerate(self.all_texture_sets):
@@ -401,7 +536,7 @@ class CustomExporter:
                 self.validate_texture_sets()
                 self.grey_out_unchecked_row()
 
-                self.set_column_read_only(1) # Texture Set name Column
+                #self.set_column_read_only(1) # Texture Set name Column
                 self.set_column_read_only(3) # Resolution name Column
                 self.set_column_read_only(4) # Export Path Column
                 self.set_column_read_only(5) # Validation Column
@@ -516,6 +651,177 @@ class DialogueWindow(QDialog): # QDialog is inherited from QWidget so all functi
         # state referers to result of checkbox.isChecked(T or F)
         settings.setValue("dialogue_window_checkbox_state", state) 
         # settings.value("dialogue_window_checkbox_state", QtCore.Qt.Unchecked)
+
+
+"""
+Unfortunately I made this Class to try and have a Texture Set Name Editor within Sub Painter.
+However the function to change the texture set names is not within the Substance Painter API.
+I kept the code here just incase it might be useful for something else at some point.
+"""
+class TexsetRenameWindow(QDialog):
+    def __init__(self, current_textset_name: str):
+        super().__init__()
+
+        self.current_textset_names=[] 
+        self.current_textset_names = current_textset_name.split("_")
+
+
+        self.setWindowTitle("Texture Set Renamer Window")
+        self.setFixedSize(400, 350)
+
+        layout = QVBoxLayout(self)
+
+        text_label = QLabel("Here you can change the Texture Set Name \nto one that follows our validation rules:")
+
+        horizontal_headers = ('Original Name', 'New Name') 
+        vertical_headers = ('Asset Type', 'Asset Detail 1', 'Asset Detail 2', 'Asset ID') 
+
+        asset_types = ()
+
+        layout.addWidget(text_label)
+        self.table = QTableWidget()
+        layout.addWidget(self.table, alignment=Qt.AlignLeft)
+        self.table.setRowCount(4)
+        row_count = self.table.rowCount()
+        self.table.setColumnCount(2)
+
+        self.table.setHorizontalHeaderLabels(horizontal_headers)
+        self.table.setVerticalHeaderLabels(vertical_headers)
+        self.table.verticalHeader().setVisible(True)
+        self.table.setFixedWidth(600)
+
+
+        for i in range(row_count):
+            self.table.setItem(i, 0, QTableWidgetItem(self.current_textset_names[i]))
+            
+            # # Set Asset type  = cbbx
+            # combo_box = QTableWidgetItem()
+            # table.setItem(i, 1, QTableWidgetItem("poo2"))
+
+            if i == 0:
+                self.combo_box = QComboBox()
+                self.combo_box_asset_type = self.combo_box.addItems(asset_types_acronyms)
+                self.combo_box.currentIndexChanged.connect(self.update_texset_name)
+                self.combo_box.currentIndexChanged.connect(self.set_cbbx_data)
+                self.combo_box.setToolTip("Specify the export preset that will be used during export")
+                self.table.setCellWidget(i, 1, self.combo_box)
+
+            if i == 1:
+                self.combo_box_1 = QComboBox()
+
+                self.combo_box_1.addItems(asset_detail_01_props)
+                # if self.combo_box.currentText() == "PROP":
+                # elif self.combo_box.currentText() == "WPN":
+                #     self.combo_box_1.addItems(asset_detail_01_wpns)
+                # elif self.combo_box.currentText() == "CHAR":
+                #     self.combo_box_1.addItems(asset_detail_01_chars)
+
+                self.combo_box_1.currentIndexChanged.connect(self.update_texset_name)
+
+
+                self.combo_box_1.setToolTip("Specify the export preset that will be used during export")
+                self.table.setCellWidget(i, 1, self.combo_box_1)
+
+            if i == 2:
+                self.combo_box_2 = QComboBox()
+                
+                self.combo_box_2.addItems(asset_detail_02_props)
+                #combo_box.currentIndexChanged.connect(self.on_refresh_texset_table)
+                self.combo_box_2.currentIndexChanged.connect(self.update_texset_name)
+
+
+                self.combo_box_2.setToolTip("Specify the export preset that will be used during export")
+                self.table.setCellWidget(i, 1, self.combo_box_2)
+
+            if i == 3:
+                self.combo_box_3 = QComboBox()
+                self.combo_box_3.addItems([f"{i:02}" for i in range(100)])
+                #combo_box.currentIndexChanged.connect(self.on_refresh_texset_table)
+                self.combo_box_3.currentIndexChanged.connect(self.update_texset_name)
+
+
+                self.combo_box_3.setToolTip("Specify the export preset that will be used during export")
+                self.table.setCellWidget(i, 1, self.combo_box_3)
+
+        self.descrip_label = QLabel("Copy and Paste the Following string to the desired texture set:")
+        layout.addWidget(self.descrip_label, Qt.AlignCenter)
+
+        self.data_str = (f"{self.combo_box.currentText()}_{self.combo_box_1.currentText()}_{self.combo_box_2.currentText()}_{self.combo_box_3.currentText()}")
+        self.label = QLineEdit(self.data_str)
+        self.label.setReadOnly(True)
+        layout.addWidget(self.label)
+
+        
+
+        refresh_button = QPushButton("Copy To Clipboard")
+        refresh_button.clicked.connect(self.copy_to_clipboard)
+        refresh_button_layout = QHBoxLayout()
+        refresh_button_layout.addWidget(refresh_button)
+
+        # # Accept and Cancel buttons
+        # accept_button = QPushButton("Accept")
+        cancel_button = QPushButton("Close")
+        # accept_button.clicked.connect(self.accept)
+        cancel_button.clicked.connect(self.reject)
+
+        button_layout = QHBoxLayout()
+        # button_layout.addWidget(accept_button)
+        button_layout.addWidget(cancel_button)
+
+        layout.addLayout(refresh_button_layout)
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+
+    def setData(self):
+        self.combo_box.currentText()
+
+    def copy_to_clipboard(self):
+        # s_text = "Copy me to clipboard"
+        qclip = QtGui.QGuiApplication.clipboard()
+        qclip.clear()
+        qclip.setText(self.label.text())
+
+
+    def getData(self):
+        return self.combo_box.currentText(),self.combo_box_1.currentText(),self.combo_box_2.currentText(), self.combo_box_3.currentText()  
+
+    def update_texset_name(self):
+        # self.combo_box.setCurrentText(self.combo_box.currentText())
+        # self.current_textset_names[0] = input_text
+        # print(f"Value : {input_text}")
+        # self.data_str = (f"{self.combo_box.currentText()}_{self.combo_box_1.currentText()}_{self.combo_box_2.currentText()}_{self.combo_box_3.currentText()}")
+        # self.table.setItem(0,0,QTableWidgetItem(self.combo_box.currentText()))
+        # self.table.setItem(1,0,QTableWidgetItem(self.combo_box_1.currentText()))
+        # self.table.setItem(3,0,QTableWidgetItem(self.combo_box_3.currentText()))
+        # self.table.setItem(2,0,QTableWidgetItem(self.combo_box_2.currentText()))
+        # self.current_textset_names[0] = input_text
+        self.label.setText(f"{self.combo_box.currentText()}_{self.combo_box_1.currentText()}_{self.combo_box_2.currentText()}_{self.combo_box_3.currentText()}")
+
+        
+        
+    def set_cbbx_data(self):
+        self.combo_box_1.clear()
+        self.combo_box_2.clear()
+        if self.combo_box.currentText() == "PROP":
+            #self.combo_box_1.clear()
+            self.combo_box_1.addItems(asset_detail_01_props)
+            #self.combo_box_2.clear()
+            self.combo_box_2.addItems(asset_detail_02_props)
+
+        elif self.combo_box.currentText() == "WPN":
+            #self.combo_box_1.clear()
+            self.combo_box_1.addItems(asset_detail_01_wpns)
+            #self.combo_box_2.clear()
+            self.combo_box_2.addItems(asset_detail_02_wpns)
+
+        elif self.combo_box.currentText() == "CHAR":
+            #self.combo_box_1.clear()
+            self.combo_box_1.addItems(asset_detail_01_chars)
+            #self.combo_box_2.clear()
+            self.combo_box_2.addItems(asset_detail_02_chars)
+
+
+
 
 def start_plugin():
     global custom_exporter
