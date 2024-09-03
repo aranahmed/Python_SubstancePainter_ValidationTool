@@ -10,15 +10,12 @@ from math import log2
 
 import os
 
-
 # for path in sys.path:
 #     print(f"Path: {path}")
 # sys.path.append('/Applications/Adobe Substance 3D Painter.app/Contents/Resources/python/modules', '/Users/aranazadahmed/Documents/Adobe/Adobe Substance 3D Painter/python/modules')
 
-
 #print (f"System Path is: {sys.path}")
 # import substance_painter
-
 
 # 3rd Party UI Library Import
 # from PySide2.QtWidgets import QtWidget
@@ -27,7 +24,7 @@ import os
 import modules_export
 import module_validation_name
 import module_validation_resolution
-
+import module_import_data_from_json
 
 # Default utils imports
 import importlib
@@ -39,6 +36,7 @@ if is_user_dev:
     importlib.reload(modules_export)
     importlib.reload(module_validation_name)
     importlib.reload(module_validation_resolution)
+    importlib.reload(module_import_data_from_json)
 
 # test_widget.py
 import substance_painter
@@ -47,24 +45,29 @@ import substance_painter.event
 import substance_painter.textureset
 
 from PySide2 import QtCore, QtGui
-from PySide2.QtWidgets import QApplication, QListWidget, QWidget, QAction, QLineEdit , QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QMenu, QLabel, QPushButton, QGridLayout, QTableWidget, QTableWidgetItem, QDialog, QDialogButtonBox
+from PySide2.QtWidgets import QApplication, QFileDialog,QListWidget, QWidget, QAction, QLineEdit , QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QMenu, QLabel, QPushButton, QGridLayout, QTableWidget, QTableWidgetItem, QDialog, QDialogButtonBox
 from PySide2.QtCore import QEvent, Qt
+from PySide2.QtGui import QPalette, QColor
 
 # Global variable
 custom_exporter = None
 personal_checkbox = None
 custom_exporter_obj_name = "custom_exporter"
 
+asset_dict = module_import_data_from_json.list_of_asset_dicts
+
+using_udims = False
+
 # Lists to populate the Texset Rename editor : Extension Task - Make these lists be populated from a JSON / Spreadsheet thing
-asset_types_acronyms = ['PROP', 'WPN', 'CHAR']
+# asset_types_acronyms = ['PROP', 'WPN', 'CHAR']
 
-asset_detail_01_props = ['CHR','TBL', 'LMP', 'WIN']
-asset_detail_01_wpns = ['SWD','BOW', 'RFL', 'EXP']
-asset_detail_01_chars = ['PLR', 'ENM', 'CIV']
+# asset_detail_01_props = ['CHR','TBL', 'LMP', 'WIN']
+# asset_detail_01_wpns = ['SWD','BOW', 'RFL', 'EXP']
+# asset_detail_01_chars = ['PLR', 'ENM', 'CIV']
 
-asset_detail_02_props = ['S','M', 'L']
-asset_detail_02_wpns = ['COM','RAR', 'EPC']
-asset_detail_02_chars = ['ML','FL', 'NB']
+# asset_detail_02_props = ['S','M', 'L']
+# asset_detail_02_wpns = ['COM','RAR', 'EPC']
+# asset_detail_02_chars = ['ML','FL', 'NB']
 
 class CustomExporter:
     def __init__(self):
@@ -90,12 +93,17 @@ class CustomExporter:
 
     def init_widget_window(self):
         # Variables
-        self.asset_types = ['Props','Weapons','Characters']
-        self.shader_types = ['Basic','Armament','Morph']
+        # self.asset_types = ['Props','Weapons','Characters']
+        # self.asset_types = asset_dict[0]['asset_name']
+        self.asset_types = [asset_name['asset_name'] for asset_name in asset_dict]
+        self.shader_types = ['Basic','Armament','Morph', 'UDIM']
         self.texset_with_overbudget_res = []
         self.widget = QWidget()
         self.widget.setObjectName(custom_exporter_obj_name)
         self.widget.setWindowTitle("Custom Exporter") 
+        self.widget.setStyleSheet("background-color:; color: white")
+
+        
 
         # File directory
         self.file_dir = os.path.dirname(__file__)
@@ -198,9 +206,33 @@ class CustomExporter:
 
         #self.main_layout.addWidget(self.context_menu)
 
+
+        self.texture_string_generator = QPushButton("Texture Set String Generator")
+        self.texture_string_generator.setMaximumWidth(300)
+
+
+        #self.main_layout.addWidget(self.texture_string_generator)
+
         
         # column_count=5
         # self.table_widget.columnCount()
+
+        export_path_layout = QHBoxLayout()
+        self.export_path_button = QPushButton('Choose Export Path')
+        self.export_path_line_edit = QLineEdit()
+
+        # Pallette
+        palette = QPalette()
+        palette.setColor(QPalette.Base, QColor(240, 255, 240))  # light green
+
+        
+
+
+
+        export_path_layout.addWidget(self.export_path_button)
+        export_path_layout.addWidget(self.export_path_line_edit)
+
+        self.main_layout.addLayout(export_path_layout)
 
          # Adds a button
         self.export_button = QPushButton("Export")
@@ -208,12 +240,15 @@ class CustomExporter:
         self.export_button.setShortcut(QtCore.Qt.ALT + QtCore.Qt.Key_E)
         
         self.main_layout.addWidget(self.export_button)
-
-
-        
-
         
         #if self.textset_uv_tiles is not None:
+
+        # Check if using UDIMs
+        if substance_painter.textureset.TextureSet.has_uv_tiles:
+            self.using_udims = True
+            substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", "You are currently using UDIMs")
+        else:
+            self.using_udims = False
 
         if substance_painter.project.is_open():
             self.fill_texset_table()
@@ -254,6 +289,15 @@ class CustomExporter:
         # Help icon action trigger
         self.help_action.triggered.connect(self.on_open_help_document)
 
+        self.export_path_button.clicked.connect(self.get_file_name)
+
+        self.export_path_line_edit.textChanged.connect(self.on_refresh_texset_table)
+
+        #self.texture_string_generator.clicked.connect(self.rename_slot)
+        
+        # self.texture_string_generator.clicked.connect(self.rename_slot(0,1))
+        # self.texture_string_generator.clicked.connect(self.get_info_from_selection(1))
+
         # Right click menu Action triggger
         #self.rename_action.triggered.connect(self.rename_slot)
 
@@ -285,6 +329,8 @@ class CustomExporter:
         self.texset_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.texset_table.customContextMenuRequested.connect(self.show_context_menu)
 
+
+
     # def contextMenuEvent(self, event):
     #     self.menu = QMenu(self)
     #     self.rename_action  = QAction('Rename', self)
@@ -303,15 +349,16 @@ class CustomExporter:
     
         #self.context_menu.popup(QtGui.QCursor.pos())
 
-    def update_texture_set_name(self, row, asset_type, asset_detail_01, asset_detail_02, asset_id):
+    def update_texture_set_name(self, row, asset_type, asset_detail_01, asset_detail_02,asset_id):
         texset_name = self.textset_name
 
         parts = texset_name.split('_')
 
         # Sets the texture table item correctly but not on sub painter side...
+        
         self.texset_table.setItem(row,1, QTableWidgetItem(f"{asset_type}_{asset_detail_01}_{asset_detail_02}_{asset_id}"))
-        print(texset_name)
-
+        print(self.texset_table.item(row, 1).text())
+       
 
     def fill_texset_table(self):
         # Note : here we are creating an attribute, NOT a local variable
@@ -347,12 +394,12 @@ class CustomExporter:
             self.texset_table.setItem(i, 1, self.texset_widget_item)
 
             # Use QComboBox for ShaderType column
-            combo_box = QComboBox()
-            combo_box.addItems(self.shader_types)
-            combo_box.currentIndexChanged.connect(self.on_refresh_texset_table)
+            self.combo_box = QComboBox()
+            self.combo_box.addItems(self.shader_types)
+            self.combo_box.currentIndexChanged.connect(self.on_refresh_texset_table)
 
-            combo_box.setToolTip("Specify the export preset that will be used during export")
-            self.texset_table.setCellWidget(i, 2, combo_box)
+            self.combo_box.setToolTip("Specify the export preset that will be used during export")
+            self.texset_table.setCellWidget(i, 2, self.combo_box)
             
             # Resolution Column using getresoltion()
             resolution = texture_set.get_resolution()
@@ -365,6 +412,16 @@ class CustomExporter:
 
 
         self.on_refresh_texset_table()
+
+    def show_udim_shader_warning(self):
+        if self.using_udims:
+            if "UDIM" not in self.combo_box.currentText():
+                substance_painter.logging.log(substance_painter.logging.WARNING, "custom_exporter", 
+                                                        "Careful, You are not using a UDIM Shader Profile \
+                                                        , but are using UDIM workflow") 
+            else:
+                substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", "You are correctly using a UDIM shader") 
+
 
     def show_context_menu(self, pos):
         # Get Item at clicked pos
@@ -407,17 +464,30 @@ class CustomExporter:
             # Intializing variables for readibility
             # texture_set_resolution = texture_set.get_resolution()
             # texture_set_name = texture_set.name()
+            if self.using_udims:
+                for uv_tile in (substance_painter.textureset.TextureSet.all_uv_tiles(texture_set)):
 
+                    # uv_tile = substance_painter.textureset.TextureSet.get_uvtiles_resolution(texture_set)
+                    # print(uv_tile)                    
+                    # res_is_valid, res_validation_details = module_validation_resolution.validate_res(asset_type, texture_set.get_resolution())
+                    uv_res_is_valid, uv_res_details = module_validation_resolution.validate_res_udim(asset_type, uv_tile.get_resolution())
+
+                    if uv_res_is_valid == False:
+                        break
+            
+            else: continue
+            
+                
             res_is_valid, res_validation_details = module_validation_resolution.validate_res(asset_type, texture_set.get_resolution())
-            
+                
             validation_item = QTableWidgetItem(QtCore.Qt.AlignRight)
-            
+                
             export_checkbox = self.texset_table.cellWidget(i, 0)
+            name_is_valid, name_validation_details = module_validation_name.validate_name(asset_type, texture_set.name())
 
-            if res_is_valid:
+            if res_is_valid and uv_res_is_valid:
                 # self.texset_with_overbudget_res.clear()
 
-                name_is_valid, name_validation_details = module_validation_name.validate_name(asset_type, texture_set.name())
                 
                 if name_is_valid:
                     validation_item.setIcon(self.icon_validation_ok)
@@ -481,15 +551,32 @@ class CustomExporter:
         required_width, required_height = module_validation_resolution.get_required_res_from_asset_type(self.asset_type_cbbx.currentText())
         required_res = substance_painter.textureset.Resolution(required_width, required_height)
         for texture_set in self.texset_with_overbudget_res:
+            if self.using_udims:
+                for uv_tile in (substance_painter.textureset.TextureSet.all_uv_tiles(texture_set)):
+                    # uv_tile_dict = []
+                    # uv_tile_dict.append(substance_painter.textureset.TextureSet.get_uvtiles_resolution(self))
+                    original_uv_res = uv_tile.get_resolution()
+                    uv_tile.set_resolution(required_res)
+
+
+                    if original_uv_res != required_res:
+                        substance_painter.logging.log(severity=substance_painter.logging.INFO,
+                                                channel="custom_exporter",
+                                                message=f"Applied minimum required resolution for UVTile: ({(1001 + (uv_tile.v * 10) + uv_tile.u)})\
+                                                            \nWas: {original_uv_res}. \nNow Set to: {required_res}") 
+            
             # substance_painter.logging.log(severity=substance_painter.logging.WARNING,
             #                                 channel="custom_exporter",
             #                               message=f"List of overbudget: {texture_set}") 
             original_res = texture_set.get_resolution()
             texture_set.set_resolution(required_res) 
-            substance_painter.logging.log(severity=substance_painter.logging.INFO,
-                                          channel="custom_exporter",
-                                          message=f"Applied minimum required resolution for: {texture_set.name()}\
-                                                    \nWas: {original_res}. Now Set to: {required_res}")
+
+            if original_res != required_res:
+                substance_painter.logging.log(severity=substance_painter.logging.INFO,
+                                                                                channel="custom_exporter",
+                                                                                message=f"Applied minimum required resolution for: {texture_set.name()}\
+                                                                                            \nWas: {original_res}. Now Set to: {required_res}")
+                                                                                            
             
     def grey_out_unchecked_row(self):
         for i in range(self.texset_table.rowCount()):
@@ -518,12 +605,12 @@ class CustomExporter:
     def on_refresh_texset_table(self):
         if substance_painter.project.is_open():
             
-            export_path_root = self.build_root_export_path()
+            export_path_root = self.build_root_export_path(self.export_path_line_edit.text())
             if self.all_texture_sets is not None:
                 for i, texture_set in enumerate(self.all_texture_sets):
                     # Set Texture Set Name
                     self.texset_table.setItem(i, 1, QTableWidgetItem(texture_set.name()))
-
+                    
                     # Resolution Column using getresoltion()
                     resolution = texture_set.get_resolution()   
                     width = resolution.width
@@ -531,16 +618,58 @@ class CustomExporter:
                     self.texset_table.setItem(i, 3, QTableWidgetItem(f"{width} x {height}"))
                     
                     # Export Path Column
-                    self.texset_table.setItem(i, 4, QTableWidgetItem(f"{export_path_root}/{self.asset_type_cbbx.currentText()}/{texture_set.name()}_{self.texset_table.cellWidget(i, 2).currentText()}/"))
+                    # If statement to check for UDIMS
+                    if self.using_udims:
+                        self.uv_tile_name = self.uv_tile_name_conversion()
+                        self.texset_table.setItem(i, 4, QTableWidgetItem(f"{export_path_root}/{self.asset_type_cbbx.currentText()}/{texture_set.name()}_{self.texset_table.cellWidget(i, 2).currentText()}/"))
+                        # self.texset_table.setItem(i, 4, QTableWidgetItem(f"{export_path_root}/{self.asset_type_cbbx.currentText()}/{texture_set.name()}_UDIM_{self.texset_table.cellWidget(i, 2).currentText()}/"))
+                    else:
+                        self.texset_table.setItem(i, 4, QTableWidgetItem(f"{export_path_root}/{self.asset_type_cbbx.currentText()}/{texture_set.name()}_{self.texset_table.cellWidget(i, 2).currentText()}/"))
                 
                 self.validate_texture_sets()
                 self.grey_out_unchecked_row()
+                self.show_udim_shader_warning()
 
-                #self.set_column_read_only(1) # Texture Set name Column
+                self.set_column_read_only(1) # Texture Set name Column
                 self.set_column_read_only(3) # Resolution name Column
                 self.set_column_read_only(4) # Export Path Column
                 self.set_column_read_only(5) # Validation Column
 
+                self.export_path_line_edit.setReadOnly(True)
+
+    # Method for attempting to convert uv_tile(u,v) to UDIM 1001, 1002 etc
+    def uv_tile_name_conversion(self):
+        # Iterate through each texture set
+        texture_sets = self.all_texture_sets
+        for texture_set in texture_sets:
+            # print(f"Texture Set: {texture_set.name()}")
+
+            # Iterate through possible UV coordinates (typically from 0 to 9)
+            for u in range(10):
+                for v in range(10):
+                    try:
+                        # Attempt to get the UV tile at the (u, v) coordinates
+                        uv_tile = texture_set.uv_tile(u, v)
+
+                        existing_uv_tile = texture_set.all_uv_tiles()
+
+                        if uv_tile in existing_uv_tile:
+                            return str((1001 + (uv_tile.v * 10) + uv_tile.u)) # for most examples, ur v channel is gonna output 0 (0 x 10 = 0) 1001. 1002. 1003 is the example for 3 UDIM sets
+                        
+                        
+                        # Calculate UDIM tile index
+                        tile_index = 1001 + (v * 10) + u
+                        
+                        # print(f"  UV Tile: {tile_index} (u={u}, v={v})")
+                        
+                        if uv_tile is not None:
+                            # print(f"Found UV_Tile at: {tile_index} {u} {v}")
+                            # print(f"Found UV_Tile at: {uv_tile}")
+                            pass
+
+                    except Exception as e:
+                        # Handle cases where the UV tile doesn't exist
+                        continue
 
     def set_column_read_only(self, column_index):
         for row in range(self.texset_table.rowCount()):
@@ -549,12 +678,22 @@ class CustomExporter:
                 item.setFlags(item.flags() & ~QtCore.Qt.ItemIsEditable)
 
 
-    def build_root_export_path(self):
+    def build_root_export_path(self, path):
         if self.personal_export_cb.isChecked():
-            root = f"/Users/aranazadahmed/Documents/SubstancePainter/{custom_exporter_obj_name}/Personal"
+            root = f"{path}/{custom_exporter_obj_name}/Personal"
+            # root = f"/Users/aranazadahmed/Documents/SubstancePainter/{custom_exporter_obj_name}/Personal"
         else:
-            root = f"/Users/aranazadahmed/Documents/SubstancePainter/{custom_exporter_obj_name}/Assets/Textures"
+            root = f"{path}/{custom_exporter_obj_name}/Assets/Textures"
+            # root = f"/Users/aranazadahmed/Documents/SubstancePainter/{custom_exporter_obj_name}/Assets/Textures"
         return root
+    
+    def get_file_name(self):
+        response = QFileDialog.getExistingDirectory(
+            parent=self.export_button,
+            caption='Select a Folder',
+            dir=os.getcwd()
+        )
+        return self.export_path_line_edit.setText(response), self.on_refresh_texset_table
 
     def connect_painter_events(self):
     #   substance_painter.event.DISPATCHER.connect(event, callback=)
@@ -569,7 +708,6 @@ class CustomExporter:
             substance_painter.event.DISPATCHER.connect(event, callback)
 
     
-
     def show_ui_widgets(self):
         plugin = substance_painter_plugins.plugins.get("custom_exporter", None)
         if plugin is not None:
@@ -589,12 +727,17 @@ class CustomExporter:
                 
                 if not should_export:
                     continue
+                # Checking udim tiles
+                if self.using_udims:
+                    uv_tile_name = self.uv_tile_name
+                else:
+                    uv_tile_name = None
                 
                 texset_name = self.texset_table.item(i, 1).text()
                 shader_type = self.texset_table.cellWidget(i, 2).currentText()
                 export_path = self.texset_table.item(i, 4).text()
 
-                modules_export.export_textures(texset_name, shader_type, export_path)
+                modules_export.export_textures(texset_name, uv_tile_name, shader_type, export_path)
       
     def on_dropdown_state_changed(self):
         self.label_01.setText(f"Asset Type: {self.asset_type_cbbx.currentText()}")
@@ -665,7 +808,6 @@ class TexsetRenameWindow(QDialog):
         self.current_textset_names=[] 
         self.current_textset_names = current_textset_name.split("_")
 
-
         self.setWindowTitle("Texture Set Renamer Window")
         self.setFixedSize(400, 350)
 
@@ -693,14 +835,12 @@ class TexsetRenameWindow(QDialog):
 
         for i in range(row_count):
             self.table.setItem(i, 0, QTableWidgetItem(self.current_textset_names[i]))
-            
-            # # Set Asset type  = cbbx
-            # combo_box = QTableWidgetItem()
-            # table.setItem(i, 1, QTableWidgetItem("poo2"))
 
             if i == 0:
                 self.combo_box = QComboBox()
-                self.combo_box_asset_type = self.combo_box.addItems(asset_types_acronyms)
+                self.combo_box_asset_type = [asset_name['asset_type'] for asset_name in asset_dict]
+                # self.combo_box_asset_type = self.combo_box.addItems(asset_dict[i]['asset_type'])
+                self.combo_box.addItems(self.combo_box_asset_type)
                 self.combo_box.currentIndexChanged.connect(self.update_texset_name)
                 self.combo_box.currentIndexChanged.connect(self.set_cbbx_data)
                 self.combo_box.setToolTip("Specify the export preset that will be used during export")
@@ -709,7 +849,7 @@ class TexsetRenameWindow(QDialog):
             if i == 1:
                 self.combo_box_1 = QComboBox()
 
-                self.combo_box_1.addItems(asset_detail_01_props)
+                self.combo_box_1.addItems(asset_dict[0]['asset_details_01'])
                 # if self.combo_box.currentText() == "PROP":
                 # elif self.combo_box.currentText() == "WPN":
                 #     self.combo_box_1.addItems(asset_detail_01_wpns)
@@ -725,7 +865,7 @@ class TexsetRenameWindow(QDialog):
             if i == 2:
                 self.combo_box_2 = QComboBox()
                 
-                self.combo_box_2.addItems(asset_detail_02_props)
+                self.combo_box_2.addItems(asset_dict[0]['asset_details_02'])
                 #combo_box.currentIndexChanged.connect(self.on_refresh_texset_table)
                 self.combo_box_2.currentIndexChanged.connect(self.update_texset_name)
 
@@ -781,47 +921,22 @@ class TexsetRenameWindow(QDialog):
         qclip.clear()
         qclip.setText(self.label.text())
 
-
     def getData(self):
         return self.combo_box.currentText(),self.combo_box_1.currentText(),self.combo_box_2.currentText(), self.combo_box_3.currentText()  
 
     def update_texset_name(self):
-        # self.combo_box.setCurrentText(self.combo_box.currentText())
-        # self.current_textset_names[0] = input_text
-        # print(f"Value : {input_text}")
-        # self.data_str = (f"{self.combo_box.currentText()}_{self.combo_box_1.currentText()}_{self.combo_box_2.currentText()}_{self.combo_box_3.currentText()}")
-        # self.table.setItem(0,0,QTableWidgetItem(self.combo_box.currentText()))
-        # self.table.setItem(1,0,QTableWidgetItem(self.combo_box_1.currentText()))
-        # self.table.setItem(3,0,QTableWidgetItem(self.combo_box_3.currentText()))
-        # self.table.setItem(2,0,QTableWidgetItem(self.combo_box_2.currentText()))
-        # self.current_textset_names[0] = input_text
         self.label.setText(f"{self.combo_box.currentText()}_{self.combo_box_1.currentText()}_{self.combo_box_2.currentText()}_{self.combo_box_3.currentText()}")
-
-        
         
     def set_cbbx_data(self):
         self.combo_box_1.clear()
         self.combo_box_2.clear()
-        if self.combo_box.currentText() == "PROP":
-            #self.combo_box_1.clear()
-            self.combo_box_1.addItems(asset_detail_01_props)
-            #self.combo_box_2.clear()
-            self.combo_box_2.addItems(asset_detail_02_props)
 
-        elif self.combo_box.currentText() == "WPN":
-            #self.combo_box_1.clear()
-            self.combo_box_1.addItems(asset_detail_01_wpns)
-            #self.combo_box_2.clear()
-            self.combo_box_2.addItems(asset_detail_02_wpns)
+        #asset_name['asset_type'] for asset_name in asset_dict
 
-        elif self.combo_box.currentText() == "CHAR":
-            #self.combo_box_1.clear()
-            self.combo_box_1.addItems(asset_detail_01_chars)
-            #self.combo_box_2.clear()
-            self.combo_box_2.addItems(asset_detail_02_chars)
-
-
-
+        for i in asset_dict:
+            if self.combo_box.currentText() == i['asset_type']:
+                self.combo_box_1.addItems(i['asset_details_01'])
+                self.combo_box_2.addItems(i['asset_details_02'])
 
 def start_plugin():
     global custom_exporter
