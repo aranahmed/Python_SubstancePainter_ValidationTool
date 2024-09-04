@@ -58,6 +58,9 @@ asset_dict = module_import_data_from_json.list_of_asset_dicts
 
 using_udims = False
 
+# Styling
+colors = ['Blue', 'Yellow', 'Green']
+
 # Lists to populate the Texset Rename editor : Extension Task - Make these lists be populated from a JSON / Spreadsheet thing
 # asset_types_acronyms = ['PROP', 'WPN', 'CHAR']
 
@@ -79,6 +82,7 @@ class CustomExporter:
         self.connect_widget_events()
         self.connect_painter_events()
         self.show_ui_widgets()
+        self.using_udims_check()
         
         # self.fill_texset_table()
         
@@ -103,7 +107,7 @@ class CustomExporter:
         self.widget.setWindowTitle("Custom Exporter") 
         self.widget.setStyleSheet("background-color:; color: white")
 
-        
+        self.using_udims = None
 
         # File directory
         self.file_dir = os.path.dirname(__file__)
@@ -141,6 +145,18 @@ class CustomExporter:
         # Adds help_layout to main_layout : align right
         self.main_layout.addLayout(help_layout)
         
+
+        # Green Text Pallette
+        # green_text_pallete = QPalette()
+        # green_text_pallete.setColor(green_text_pallete.text(), QColor.blue(1))
+        # UDIM Checkbox READonly : Just to show what workflow you are using
+        self.udim_chckbx= QCheckBox("Using UDIM")
+        # self.udim_chckbx.setPalette(green_text_pallete)
+        self.udim_chckbx.setToolTip("Specifies whether you are using UDIMs or not")
+        self.udim_chckbx.setEnabled(False) 
+
+        self.main_layout.addWidget(self.udim_chckbx)
+
         # Personal export checkbox
         # Implement Checkbox
         self.personal_export_cb = QCheckBox("Personal Export")
@@ -243,12 +259,8 @@ class CustomExporter:
         
         #if self.textset_uv_tiles is not None:
 
-        # Check if using UDIMs
-        if substance_painter.textureset.TextureSet.has_uv_tiles:
-            self.using_udims = True
-            substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", "You are currently using UDIMs")
-        else:
-            self.using_udims = False
+       
+
 
         if substance_painter.project.is_open():
             self.fill_texset_table()
@@ -263,6 +275,20 @@ class CustomExporter:
         
     #     return super().event_filter(source, event)
     
+    def using_udims_check(self):
+        all_texture_sets = substance_painter.textureset.all_texture_sets()
+
+        # Check if using UDIMs
+        if substance_painter.textureset.TextureSet.has_uv_tiles(all_texture_sets[0]):
+            self.using_udims = True
+            substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", "You are currently using UDIMs")
+            self.udim_chckbx.setChecked(True)
+        else:
+            self.using_udims = False
+            substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", "You are NOT currently using UDIMs")
+            self.udim_chckbx.setChecked(False)
+
+
     def contextMenuEvent(self, event):
         self.context_menu.exec_(QtGui.QCursor.pos())
 
@@ -365,6 +391,7 @@ class CustomExporter:
         # The self infront of our variable name means we can access across the script
         self.all_texture_sets = substance_painter.textureset.all_texture_sets()
         self.texset_table.setRowCount(len(self.all_texture_sets))
+        self.using_udims_check()
 
         """
         Checking whether texture sets is using the UV_Tiles Workflow
@@ -457,6 +484,7 @@ class CustomExporter:
     def validate_texture_sets(self):
         self.texset_with_overbudget_res = [] 
         asset_type = self.asset_type_cbbx.currentText()
+        uv_res_is_valid = None
 
         # Check name of each texture set
         for i, texture_set in enumerate(self.all_texture_sets):
@@ -475,7 +503,9 @@ class CustomExporter:
                     if uv_res_is_valid == False:
                         break
             
-            else: continue
+            else: 
+                uv_res_is_valid = True
+                
             
                 
             res_is_valid, res_validation_details = module_validation_resolution.validate_res(asset_type, texture_set.get_resolution())
@@ -721,6 +751,7 @@ class CustomExporter:
 
     # Functions for signal emitters in UI
     def on_export_requested(self):
+        self.on_refresh_texset_table()
         if self.all_texture_sets != None:
             for i in range(len(self.all_texture_sets)):
                 should_export = self.texset_table.cellWidget(i, 0).isChecked()

@@ -1,14 +1,19 @@
 """
     Module to validate texture set resolution.
 
-    Rules:
+    Default Rules:
     Props can only have a texture resolution of up to 1024x1024
     Weapons can only have a texture resolution of up to 2048x2048
     Characters can only have a texture resolution of up to 4096x4096
 
+    Updated Rules:
+    Asset Types, Details and Max Resolutions are dictated by the values input into the accompanying spreadsheet.
+    They will default to the above values, when no spreadsheet is detected.
+
     Content:
         - get_required_res_from_asset_type
         - validate_res
+        - validate_res_udims
     
     Contributors
         - Aran Ahmed, aranahmed1@live.co.uk
@@ -20,17 +25,8 @@ import module_import_data_from_json
 asset_dict = module_import_data_from_json.list_of_asset_dicts
 
 res_requirements = {
-    # asset_dict[0]['asset_name']: [asset_dict[0]['width'], asset_dict[0]['height']],
-    # asset_dict[1]['asset_name']: [asset_dict[1]['width'], asset_dict[1]['height']],
-    # asset_dict[2]['asset_name']: [asset_dict[2]['width'], asset_dict[2]['height']],
-    # asset_dict[3]['asset_name']: [asset_dict[3]['width'], asset_dict[3]['height']],
-
-    # for i in range(asset_dict)):
-    #     asset_dict[i]['asset_name']: [asset_dict[i]['width'], asset_dict[i]['height']]
+    
 }
-
-# for i in range(asset_dict):
-    # res_requirements[f'{asset_dict[i]['asset_name']}'] = [asset_dict[i]['width'], asset_dict[i]['height']]
     
 for asset in asset_dict:
     res_requirements[asset['asset_name']] = [asset['width'], asset['height']]

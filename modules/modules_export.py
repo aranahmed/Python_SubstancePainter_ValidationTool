@@ -55,7 +55,7 @@ def create_new_export_paths(export_path: str):
         new_path = f"{export_path}/{uv_tile}"
         return new_path
 
-def build_export_config(texture_set_name: str,uv_tile_name : str, shader_type: str, export_path: str):
+def build_export_config(texture_set_name: str, shader_type: str, export_path: str):
     texture_set = substance_painter.textureset.TextureSet.from_name(texture_set_name)
     texture_set_stack = texture_set.get_stack()
 
@@ -66,44 +66,49 @@ def build_export_config(texture_set_name: str,uv_tile_name : str, shader_type: s
     uv_tile_list = substance_painter.textureset.TextureSet.all_uv_tiles(texture_set)
 
     if substance_painter.textureset.TextureSet.has_uv_tiles(texture_set):
-        for uv_tile in (substance_painter.textureset.TextureSet.all_uv_tiles(texture_set)):
+        export_configs=[]
+        for i, uv_tile in enumerate(substance_painter.textureset.TextureSet.all_uv_tiles(texture_set),0):
             resolution = substance_painter.textureset.UVTile.get_resolution(uv_tile)
             resolution = [log2(resolution.width), log2(resolution.height)]
-        # Doesnt look like this works:
-        export_config = {
-        "exportShaderParams": False,
-        "exportPath": export_path,
-        "defaultExportPreset" : export_preset_id.url(),
-        # "exportPresets" : [{
-        #     "name" : export_preset_name,
-        #     "maps" : [{
-        #         "fileName"  : "$textureSet_$udim"
-        #     }]
-        # }],
-        "exportList": [
-            {
-                "rootPath": str(texture_set_stack),
-                
-                # Chooses which UV tiles to export 
-                # "filter" : {
+            formatted_uv_tile = [uv_tile.u,uv_tile.v]
+            
+            # Doesnt look like this works:
+            export_config = {
+            "exportShaderParams": False,
+            "exportPath": export_path,
+            "defaultExportPreset" : export_preset_id.url(),
+            # "exportPresets" : [{
+            #     "name" : export_preset_name,
+            #     "maps" : [{
+            #         "fileName"  : "$textureSet_$udim"
+            #     }]
+            # }],
+            "exportList": [
+                {
+                    "rootPath": str(texture_set_stack),
+                    
+                    # Chooses which UV tiles to export 
+                    "filter" : {
 
-                #     "uvTiles" : [[0,0],[1,0] ,[2,0]]
-                # }
-            }
-        ],
-        "exportParameters": [
-            {
-
-                # "filter" :  {
-                #     "uvTiles" : [[0,0],[1,0],[2,0]]
-                # },
-                "parameters": {
-                    "paddingAlgorithm": "infinite",
-                    "sizeLog2" : resolution
+                        "uvTiles" : [formatted_uv_tile]
+                    }
                 }
-            }]
-        }
-        return export_config
+            ],
+            "exportParameters": [
+                {
+
+                    # "filter" :  {
+                    #     "uvTiles" : [[0,0],[1,0],[2,0]]
+                    # },
+                    "parameters": {
+                        "paddingAlgorithm": "infinite",
+                        "sizeLog2" : resolution
+                    }
+                }]
+            }
+            export_configs.append(export_config)
+        return export_configs
+        # print(f"Export configs: {len(export_configs)}")
     else:
         resolution = texture_set.get_resolution()
         resolution = [log2(resolution.width), log2(resolution.height)]
@@ -151,21 +156,51 @@ def export_textures(texture_set_name: str,uv_tile_name: str, shader_type : str, 
     if not substance_painter.project.is_open():
         return
     
-    export_config = build_export_config(texture_set_name, uv_tile_name, shader_type, export_path)
+    texture_set = substance_painter.textureset.TextureSet.from_name(texture_set_name)
+    if substance_painter.textureset.TextureSet.has_uv_tiles(texture_set):
+        
+        export_configs = build_export_config(texture_set_name, shader_type, export_path)
+        print(len(export_configs))
+
+        # for i,uv_tile in enumerate(substance_painter.textureset.TextureSet.all_uv_tiles(texture_set),0):
+        for export_config in export_configs:
+
     
-    # Actual export operation:
-    substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", "Going to preform Texture Exporting")
+            # export_config, uv_tile = build_export_config(texture_set_name, uv_tile, shader_type, export_path)
+            
+            # Actual export operation:
+            substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", "Going to preform Texture Exporting")
 
-    export_result = substance_painter.export.export_project_textures(export_config)
+            export_result = substance_painter.export.export_project_textures(export_config)
 
-    # In case of error, display a human readable message:
-    if export_result.status == substance_painter.export.ExportStatus.Success:
-        open_export_at_given_path(export_path)
+            # In case of error, display a human readable message:
+            if export_result.status == substance_painter.export.ExportStatus.Success:
+                open_export_at_given_path(export_path)
+            else:
+                substance_painter.logging.log(substance_painter.logging.WARNING, "custom_exporter", export_result.message)
+
+            # Display the details of what was exported:
+            for k,v in export_result.textures.items():
+                substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", f"Stack {k}:")
+                for exported in v:
+                    substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", exported)
+    
     else:
-        substance_painter.logging.log(substance_painter.logging.WARNING, "custom_exporter", export_result.message)
+        export_config = build_export_config(texture_set_name, shader_type, export_path)
+        
+        # Actual export operation:
+        substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", "Going to preform Texture Exporting")
 
-    # Display the details of what was exported:
-    for k,v in export_result.textures.items():
-        substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", f"Stack {k}:")
-        for exported in v:
-            substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", exported)
+        export_result = substance_painter.export.export_project_textures(export_config)
+
+        # In case of error, display a human readable message:
+        if export_result.status == substance_painter.export.ExportStatus.Success:
+            open_export_at_given_path(export_path)
+        else:
+            substance_painter.logging.log(substance_painter.logging.WARNING, "custom_exporter", export_result.message)
+
+        # Display the details of what was exported:
+        for k,v in export_result.textures.items():
+            substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", f"Stack {k}:")
+            for exported in v:
+                substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", exported)

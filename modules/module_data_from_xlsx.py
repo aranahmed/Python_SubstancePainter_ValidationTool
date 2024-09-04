@@ -1,3 +1,11 @@
+"""
+Module to import data from spreadsheet file.
+
+Extension : 
+    - read excel document from given path
+    -
+
+"""
 import pandas as pd
 import json
 
