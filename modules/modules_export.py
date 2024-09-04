@@ -71,6 +71,7 @@ def build_export_config(texture_set_name: str, shader_type: str, export_path: st
             resolution = [log2(resolution.width), log2(resolution.height)]
             formatted_uv_tile = [uv_tile.u,uv_tile.v]
             
+            
             # Doesnt look like this works:
             export_config = {
             "exportShaderParams": False,

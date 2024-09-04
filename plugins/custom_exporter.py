@@ -108,6 +108,10 @@ class CustomExporter:
 
         self.using_udims = None
 
+        stack_material_name = substance_painter.textureset.Stack.material(substance_painter.textureset.get_active_stack())
+        stack_name = substance_painter.textureset.TextureSet.all_stacks(substance_painter.textureset.TextureSet.from_name("PROP_CHR_M_02"))
+        print(stack_name)
+
         # File directory
         self.file_dir = os.path.dirname(__file__)
         # Icon path directory addons
@@ -976,7 +980,7 @@ class TexsetRenameWindow(QDialog):
         return self.combo_box.currentText(),self.combo_box_1.currentText(),self.combo_box_2.currentText(), self.combo_box_3.currentText()  
 
     def update_texset_name(self):
-        self.label.setText(f"{self.combo_box.currentText()}_{self.combo_box_1.currentText()}_{self.combo_box_2.currentText()}_{self.combo_box_3.currentText()}")
+        self.label.setText(f"{self.cbbx_holder.currentText()}_{self.combo_box_1.currentText()}_{self.combo_box_2.currentText()}_{self.combo_box_3.currentText()}")
         
     def set_cbbx_data(self):
         self.combo_box_1.clear()
@@ -985,7 +989,7 @@ class TexsetRenameWindow(QDialog):
         #asset_name['asset_type'] for asset_name in asset_dict
 
         for i in asset_dict:
-            if self.combo_box.currentText() == i['asset_type']:
+            if self.cbbx_holder.currentText() == i['asset_type']:
                 self.combo_box_1.addItems(i['asset_details_01'])
                 self.combo_box_2.addItems(i['asset_details_02'])
 
