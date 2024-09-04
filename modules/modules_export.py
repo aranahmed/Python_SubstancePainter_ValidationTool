@@ -20,7 +20,6 @@ import substance_painter
 from math import log2
 # from os import startfile
 
-
 # From stackoverflow for os.startfile() on MacOS
 
 import os, sys, subprocess

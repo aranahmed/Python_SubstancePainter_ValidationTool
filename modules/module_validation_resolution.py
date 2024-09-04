@@ -14,6 +14,9 @@
         - get_required_res_from_asset_type
         - validate_res
         - validate_res_udims
+
+    Imporovement:
+        - extend validation to include non square texture sizes
     
     Contributors
         - Aran Ahmed, aranahmed1@live.co.uk
@@ -49,10 +52,24 @@ def get_required_res_from_asset_type(asset_type: str)-> tuple[int, int]:
 def validate_res(asset_type: str, current_texset_res: substance_painter.textureset.Resolution)-> tuple[bool, str]:
     is_validation_passed = None
     validation_details = None
+    
 
     required_res_width, required_res_height = get_required_res_from_asset_type(asset_type)
 
-    if current_texset_res.width > required_res_width or current_texset_res.height > required_res_height:
+    if current_texset_res.width > required_res_width and current_texset_res.height <= required_res_height:
+        is_validation_passed = False
+        validation_details = f"Current Resolution Width for texture set is: {current_texset_res.width}, \
+                            \nwhich is higher than the max allowed Width for current Asset Type: {asset_type}:\
+                            \n{current_texset_res.width}"
+        
+        
+    elif current_texset_res.height > required_res_height and current_texset_res.width <= required_res_width:
+        is_validation_passed = False
+        validation_details = f"Current Resolution Height for texture set is: {current_texset_res.height}, \
+                            \nwhich is higher than the max allowed Height for current Asset Type: {asset_type}:\
+                            \n{current_texset_res.height}"
+
+    elif current_texset_res.width > required_res_width or current_texset_res.height > required_res_height:
         is_validation_passed = False
         validation_details = f"Current Resolution for texture set: {current_texset_res.width} x {current_texset_res.height}, \
                             \nwhich is higher than the max allowed for current Asset Type: {asset_type}:\
@@ -60,7 +77,7 @@ def validate_res(asset_type: str, current_texset_res: substance_painter.textures
     else:
         is_validation_passed = True
         validation_details = "Validation Passed!"
-
+    print(validation_details)
     return is_validation_passed, validation_details
 
 def validate_res_udim(asset_type: str, current_uv_tile_res: substance_painter.textureset.UVTile)-> tuple[bool, str]:

@@ -86,7 +86,6 @@ class CustomExporter:
         
         # self.fill_texset_table()
         
-        
         # Debugging setup : Dev use only
         is_debugging = False
         if is_debugging:
@@ -178,6 +177,7 @@ class CustomExporter:
         
         self.asset_type_cbbx.addItems(self.asset_types)
         self.asset_type_cbbx.setToolTip("Set the desired Asset type. \nIt will affect Export path generation and Texture Set validation.")
+        self.asset_type_cbbx.setMaximumWidth(100)
 
         self.main_layout.addWidget(self.asset_type_cbbx)
         current_index_dropdown = self.asset_type_cbbx.currentText()
@@ -241,10 +241,6 @@ class CustomExporter:
         palette = QPalette()
         palette.setColor(QPalette.Base, QColor(240, 255, 240))  # light green
 
-        
-
-
-
         export_path_layout.addWidget(self.export_path_button)
         export_path_layout.addWidget(self.export_path_line_edit)
 
@@ -258,9 +254,6 @@ class CustomExporter:
         self.main_layout.addWidget(self.export_button)
         
         #if self.textset_uv_tiles is not None:
-
-       
-
 
         if substance_painter.project.is_open():
             self.fill_texset_table()
@@ -308,6 +301,8 @@ class CustomExporter:
 
         # When asset type changed..
         self.asset_type_cbbx.currentIndexChanged.connect(self.on_refresh_texset_table)
+        # When dropdown item changed
+        self.asset_type_cbbx.currentIndexChanged.connect(self.on_dropdown_state_changed)
 
          # Interaction signal emitter for button
         self.export_button.clicked.connect(self.on_export_requested)
@@ -327,8 +322,6 @@ class CustomExporter:
         # Right click menu Action triggger
         #self.rename_action.triggered.connect(self.rename_slot)
 
-        # When dropdown item changed
-        #self.asset_type_cbbx.currentIndexChanged.connect(self.on_dropdown_state_changed)
 
         
         # self.asset_type_cbbx.stateChanged.connect(self.grey_out_unchecked_row)
@@ -580,6 +573,11 @@ class CustomExporter:
     def apply_required_res(self):
         required_width, required_height = module_validation_resolution.get_required_res_from_asset_type(self.asset_type_cbbx.currentText())
         required_res = substance_painter.textureset.Resolution(required_width, required_height)
+        
+        # Detect if resolution is uneven 
+        self.uneven_res = None
+        
+
         for texture_set in self.texset_with_overbudget_res:
             if self.using_udims:
                 for uv_tile in (substance_painter.textureset.TextureSet.all_uv_tiles(texture_set)):
@@ -598,14 +596,34 @@ class CustomExporter:
             # substance_painter.logging.log(severity=substance_painter.logging.WARNING,
             #                                 channel="custom_exporter",
             #                               message=f"List of overbudget: {texture_set}") 
-            original_res = texture_set.get_resolution()
-            texture_set.set_resolution(required_res) 
 
-            if original_res != required_res:
-                substance_painter.logging.log(severity=substance_painter.logging.INFO,
-                                                                                channel="custom_exporter",
-                                                                                message=f"Applied minimum required resolution for: {texture_set.name()}\
-                                                                                            \nWas: {original_res}. Now Set to: {required_res}")
+            if texture_set.get_resolution().width != texture_set.get_resolution().height:
+                # if width is the larger value, change width value only
+                if texture_set.get_resolution().width > required_res.width and texture_set.get_resolution().height <= required_res.height:
+                    original_res = texture_set.get_resolution()
+                    self.uneven_res = True
+                    
+                    required_res = substance_painter.textureset.Resolution(required_width, original_res.height)
+
+                    texture_set.set_resolution(required_res)
+                # if height is the larger value, change height only
+                elif texture_set.get_resolution().height > required_res.height and texture_set.get_resolution().width <= required_res.width:
+                    original_res = texture_set.get_resolution()
+                    self.uneven_res = True
+                    
+                    required_res = substance_painter.textureset.Resolution(original_res.width, required_height)
+                    texture_set.set_resolution(required_res)
+                    
+            else:
+                self.uneven_res = False
+                original_res = texture_set.get_resolution()
+                texture_set.set_resolution(required_res) 
+
+                if original_res != required_res:
+                    substance_painter.logging.log(severity=substance_painter.logging.INFO,
+                                                                                    channel="custom_exporter",
+                                                                                    message=f"Applied minimum required resolution for: {texture_set.name()}\
+                                                                                                \nWas: {original_res}. Now Set to: {required_res}")
                                                                                             
             
     def grey_out_unchecked_row(self):
@@ -866,16 +884,18 @@ class TexsetRenameWindow(QDialog):
 
         for i in range(row_count):
             self.table.setItem(i, 0, QTableWidgetItem(self.current_textset_names[i]))
-
+            # self.combo_box = None
+            # self.combo_box_1 = None
+            # self.combo_box_2 = None
             if i == 0:
-                self.combo_box = QComboBox()
+                self.cbbx_holder = QComboBox()
                 self.combo_box_asset_type = [asset_name['asset_type'] for asset_name in asset_dict]
                 # self.combo_box_asset_type = self.combo_box.addItems(asset_dict[i]['asset_type'])
-                self.combo_box.addItems(self.combo_box_asset_type)
-                self.combo_box.currentIndexChanged.connect(self.update_texset_name)
-                self.combo_box.currentIndexChanged.connect(self.set_cbbx_data)
-                self.combo_box.setToolTip("Specify the export preset that will be used during export")
-                self.table.setCellWidget(i, 1, self.combo_box)
+                self.cbbx_holder.addItems(self.combo_box_asset_type)
+                self.cbbx_holder.currentIndexChanged.connect(self.update_texset_name)
+                self.cbbx_holder.currentIndexChanged.connect(self.set_cbbx_data) # List index out of range
+                self.cbbx_holder.setToolTip("Specify the export preset that will be used during export")
+                self.table.setCellWidget(i, 1, self.cbbx_holder)
 
             if i == 1:
                 self.combo_box_1 = QComboBox()
@@ -917,7 +937,7 @@ class TexsetRenameWindow(QDialog):
         self.descrip_label = QLabel("Copy and Paste the Following string to the desired texture set:")
         layout.addWidget(self.descrip_label, Qt.AlignCenter)
 
-        self.data_str = (f"{self.combo_box.currentText()}_{self.combo_box_1.currentText()}_{self.combo_box_2.currentText()}_{self.combo_box_3.currentText()}")
+        self.data_str = (f"{self.cbbx_holder.currentText()}_{self.combo_box_1.currentText()}_{self.combo_box_2.currentText()}_{self.combo_box_3.currentText()}")
         self.label = QLineEdit(self.data_str)
         self.label.setReadOnly(True)
         layout.addWidget(self.label)
