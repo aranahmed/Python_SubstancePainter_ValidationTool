@@ -77,7 +77,6 @@ def validate_res(asset_type: str, current_texset_res: substance_painter.textures
     else:
         is_validation_passed = True
         validation_details = "Validation Passed!"
-    print(validation_details)
     return is_validation_passed, validation_details
 
 def validate_res_udim(asset_type: str, current_uv_tile_res: substance_painter.textureset.UVTile)-> tuple[bool, str]:

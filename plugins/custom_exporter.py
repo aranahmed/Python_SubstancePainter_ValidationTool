@@ -45,7 +45,7 @@ import substance_painter.event
 import substance_painter.textureset
 
 from PySide2 import QtCore, QtGui
-from PySide2.QtWidgets import QApplication, QFileDialog,QListWidget, QWidget, QAction, QLineEdit , QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QMenu, QLabel, QPushButton, QGridLayout, QTableWidget, QTableWidgetItem, QDialog, QDialogButtonBox
+from PySide2.QtWidgets import QApplication,QStyle, QFileDialog,QListWidget, QWidget, QAction, QLineEdit , QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QMenu, QLabel, QPushButton, QGridLayout, QTableWidget, QTableWidgetItem, QDialog, QDialogButtonBox
 from PySide2.QtCore import QEvent, Qt
 from PySide2.QtGui import QPalette, QColor
 
@@ -108,9 +108,9 @@ class CustomExporter:
 
         self.using_udims = None
 
-        stack_material_name = substance_painter.textureset.Stack.material(substance_painter.textureset.get_active_stack())
-        stack_name = substance_painter.textureset.TextureSet.all_stacks(substance_painter.textureset.TextureSet.from_name("PROP_CHR_M_02"))
-        print(stack_name)
+        # stack_material_name = substance_painter.textureset.Stack.material(substance_painter.textureset.get_active_stack())
+        # stack_name = substance_painter.textureset.TextureSet.all_stacks(substance_painter.textureset.TextureSet.from_name("PROP_CHR_M_02"))
+        # print(stack_name)
 
         # File directory
         self.file_dir = os.path.dirname(__file__)
@@ -118,7 +118,7 @@ class CustomExporter:
         self.icons_path = os.path.join(self.file_dir, "Icons")
         self.pixmap_help_path = os.path.join(self.icons_path, "help.png")
         # Icon paths application
-        self.icon_main_window = QtGui.QIcon(os.path.join(self.icons_path, "main_window_icon.png"))
+        self.icon_main_window = QtGui.QIcon(os.path.join(self.icons_path, "main_window_icon_custom.png"))
         self.icon_validation_ok = QtGui.QIcon(os.path.join(self.icons_path, "validation_ok.png"))
         self.icon_validation_fail = QtGui.QIcon(os.path.join(self.icons_path, "validation_fail.png"))
         self.pixmap_help = QtGui.QPixmap(self.pixmap_help_path)
@@ -238,9 +238,22 @@ class CustomExporter:
         # self.table_widget.columnCount()
 
         export_path_layout = QHBoxLayout()
+        folder_icon_name  = QStyle.SP_DirLinkIcon
+        folder_icon = self.widget.style().standardIcon(folder_icon_name)
         self.export_path_button = QPushButton('Choose Export Path')
+        self.export_path_button.setIcon(folder_icon)
         self.export_path_line_edit = QLineEdit()
+        if sys.platform == "win32":
+            self.export_path_line_edit.setText("c:/users<username>/Documents")
+        else:
+            if sys.platform == "darwin":
+                documents_path = os.path.join(os.path.expanduser("~"), "Documents")
+                self.export_path_line_edit.setText(documents_path)
 
+        
+
+            
+        
         # Pallette
         palette = QPalette()
         palette.setColor(QPalette.Base, QColor(240, 255, 240))  # light green
@@ -410,7 +423,15 @@ class CustomExporter:
             check_box = QCheckBox()
             check_box.setChecked(True)
             check_box.stateChanged.connect(self.grey_out_unchecked_row)
-            self.texset_table.setCellWidget(i, 0, check_box)
+
+            # Create a QWidget to act as a container for the checkbox
+            container_widget = QWidget()
+            cell_0_layout = QHBoxLayout(container_widget)
+            cell_0_layout.addWidget(check_box)
+            cell_0_layout.setAlignment(Qt.AlignCenter)  # Center the checkbox
+            cell_0_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins for better centering
+
+            self.texset_table.setCellWidget(i, 0, container_widget)
 
             # Text set name column
             self.textset_name = texture_set.name()
@@ -507,9 +528,20 @@ class CustomExporter:
                 
             res_is_valid, res_validation_details = module_validation_resolution.validate_res(asset_type, texture_set.get_resolution())
                 
-            validation_item = QTableWidgetItem(QtCore.Qt.AlignRight)
+
+            # Create QLabel to hold the icon
+            icon_label = QLabel()
+            
+
+            # Validation Icon Styling    
+            validation_layout = QHBoxLayout()
+            validation_item = QTableWidgetItem()
+            # validation_layout.addWidget(validation_item)
+            # validation_layout.setAlignment(Qt.AlignCenter)
+            # self.main_layout.addLayout(validation_layout)
+            
                 
-            export_checkbox = self.texset_table.cellWidget(i, 0)
+            export_checkbox = self.texset_table.cellWidget(i, 0).findChild(QCheckBox)
             name_is_valid, name_validation_details = module_validation_name.validate_name(asset_type, texture_set.name())
 
             if res_is_valid and uv_res_is_valid:
@@ -517,16 +549,31 @@ class CustomExporter:
 
                 
                 if name_is_valid:
-                    validation_item.setIcon(self.icon_validation_ok)
+                    widget = QWidget()
+                    icon_label.setPixmap(self.icon_validation_ok.pixmap(16,16))
+                    validation_layout.addWidget(icon_label)
+                    validation_layout.setAlignment(Qt.AlignCenter)
+                    validation_layout.setContentsMargins(5,5,5,5)
+                    widget.setLayout(validation_layout)
+
+                    # validation_item.setIcon(self.icon_validation_ok)
+                    # validation_item.setTextAlignment(Qt.AlignLeft)
                     #validation_item.setTextAlignment(QtCore.Qt.AlignCenter)
-                    validation_item.setToolTip(f"Texture Set validations are OK for texture set #{i + 1} \
+                    widget.setToolTip(f"Texture Set validations are OK for texture set #{i + 1} \
                                             \n{texture_set.name()} \
                                             \nGood Job!")
                     export_checkbox.setToolTip(f"Specify if texture set #{i + 1}: {texture_set.name()} \
                                                should be exported or skipped.")
                 else:
-                    validation_item.setIcon(self.icon_validation_fail)
-                    validation_item.setToolTip(f"Texture Set Name validation has FAILED for texture set #{i + 1} \
+                    widget = QWidget()
+                    icon_label.setPixmap(self.icon_validation_fail.pixmap(16,16))
+                    validation_layout.addWidget(icon_label)
+                    validation_layout.setAlignment(Qt.AlignCenter)
+                    validation_layout.setContentsMargins(5,5,5,5)
+                    widget.setLayout(validation_layout)
+
+                    # validation_item.setIcon(self.icon_validation_fail)
+                    widget.setToolTip(f"Texture Set Name validation has FAILED for texture set #{i + 1} \
                                             \n{texture_set.name()} \
                                             \nReason: {name_validation_details}\
                                             \nExport of this texture set is forcibly disabled until validation is OK.")
@@ -535,8 +582,15 @@ class CustomExporter:
                                             \nReason: {name_validation_details}\
                                             \nExport of this texture set is forcibly disabled until validation is OK.")
             else:
-                validation_item.setIcon(self.icon_validation_fail)
-                validation_item.setToolTip(f"Texture Set Resolution validation has FAILED for texture set #{i + 1} \
+                widget = QWidget()
+                icon_label.setPixmap(self.icon_validation_fail.pixmap(16,16))
+                validation_layout.addWidget(icon_label)
+                validation_layout.setAlignment(Qt.AlignCenter)
+                validation_layout.setContentsMargins(5,5,5,5)
+                widget.setLayout(validation_layout)
+
+                # validation_item.setIcon(self.icon_validation_fail)
+                widget.setToolTip(f"Texture Set Resolution validation has FAILED for texture set #{i + 1} \
                                         \n{texture_set.get_resolution()} \
                                         \nReason: {res_validation_details}\
                                         \nExport of this texture set is forcibly disabled until validation is OK.")
@@ -550,7 +604,9 @@ class CustomExporter:
                 
             export_checkbox.setEnabled(res_is_valid and name_is_valid)
             export_checkbox.setChecked(res_is_valid and name_is_valid)
-            self.texset_table.setItem(i, 5, validation_item)
+            # self.texset_table.setItem(i, 5, validation_item)
+            self.texset_table.setCellWidget(i, 5, widget)
+
 
         if len(self.texset_with_overbudget_res) > 0:
             self.open_dialogue_res_confirmation()
@@ -632,7 +688,7 @@ class CustomExporter:
             
     def grey_out_unchecked_row(self):
         for i in range(self.texset_table.rowCount()):
-            check_box_item = self.texset_table.cellWidget(i, 0)
+            check_box_item = self.texset_table.cellWidget(i, 0).findChild(QCheckBox)
             if check_box_item.isChecked():
                 for j in range(1, self.texset_table.columnCount() - 1):
                     # Each item
@@ -667,7 +723,10 @@ class CustomExporter:
                     resolution = texture_set.get_resolution()   
                     width = resolution.width
                     height = resolution.height
-                    self.texset_table.setItem(i, 3, QTableWidgetItem(f"{width} x {height}"))
+                    resolution_text = QTableWidgetItem(f"{width} x {height}")
+                    # Align Resolution text to center
+                    resolution_text.setTextAlignment(Qt.AlignCenter)
+                    self.texset_table.setItem(i, 3, resolution_text)
                     
                     # Export Path Column
                     # If statement to check for UDIMS
@@ -740,13 +799,18 @@ class CustomExporter:
         return root
     
     def get_file_name(self):
+        original_file_path = self.export_path_line_edit.text()
         response = QFileDialog.getExistingDirectory(
             parent=self.export_button,
             caption='Select a Folder',
             dir=os.getcwd()
         )
-        return self.export_path_line_edit.setText(response), self.on_refresh_texset_table
+        if response:
 
+            return self.export_path_line_edit.setText(response), self.on_refresh_texset_table
+
+        else:
+            return self.export_path_line_edit.setText(original_file_path), self.on_refresh_texset_table
     def connect_painter_events(self):
     #   substance_painter.event.DISPATCHER.connect(event, callback=)
         # Dictionary to connect events with a value
@@ -776,7 +840,7 @@ class CustomExporter:
         self.on_refresh_texset_table()
         if self.all_texture_sets != None:
             for i in range(len(self.all_texture_sets)):
-                should_export = self.texset_table.cellWidget(i, 0).isChecked()
+                should_export = self.texset_table.cellWidget(i, 0).findChild(QCheckBox).isChecked()
                 
                 if not should_export:
                     continue
@@ -804,10 +868,12 @@ class CustomExporter:
     def on_project_opened(self, e):
         substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", f"Project {substance_painter.project.name()} openend")
         self.fill_texset_table()
+        # self.using_udims_check()
 
     def on_project_created(self, e):
         substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", f"Project {substance_painter.project.name()} created")    
         self.fill_texset_table()
+        # self.using_udims_check()
 
     def on_project_about_to_close(self, e):
         substance_painter.logging.log(substance_painter.logging.INFO, "custom_exporter", f"Project {substance_painter.project.name()} about to close..")    
