@@ -941,7 +941,8 @@ class TexsetRenameWindow(QDialog):
 
         layout.addWidget(text_label)
         self.table = QTableWidget()
-        layout.addWidget(self.table, alignment=Qt.AlignLeft)
+        
+        layout.addWidget(self.table, alignment=Qt.AlignCenter)
         self.table.setRowCount(4)
         row_count = self.table.rowCount()
         self.table.setColumnCount(2)
@@ -949,7 +950,7 @@ class TexsetRenameWindow(QDialog):
         self.table.setHorizontalHeaderLabels(horizontal_headers)
         self.table.setVerticalHeaderLabels(vertical_headers)
         self.table.verticalHeader().setVisible(True)
-        self.table.setFixedWidth(600)
+        # self.table.setFixedWidth(600)
 
 
         for i in range(row_count):
