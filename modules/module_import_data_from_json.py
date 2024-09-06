@@ -14,7 +14,9 @@ If it can't find a JSON file it will take some default data based on original Te
 import json
 import os
 
-json_path = "/Users/aranazadahmed/Documents/Adobe/Adobe Substance 3D Painter/python/texture_set_name_data.json"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+json_path = os.path.join(parent_dir,"texture_set_name_data.json")
 
 default_data=[
             {"asset_name": "Props", "asset_types": "PROP", "asset_detail_01": "CHR,TBL,LMP,WIN", "asset_detail_02": "S,M,L", "max_res": "1024,1024"},
@@ -81,23 +83,5 @@ for item in data:
         # "asset_resolution": asset_max_res
     }
 
-    # print(f"{asset_dictionary}\n")
 
     list_of_asset_dicts.append(asset_dictionary)
-    # print(type(list_of_asset_dicts[0]['width']))
-    # print(list_of_asset_dicts)
-
-
-# for i in list_of_asset_dicts:
-     
-#     print(f"{list_of_asset_dicts}")
-
-# if list_of_asset_dicts[0]['asset_detail_01'] == "PROP":
-#     print("Yes")  
-# else:
-#     print("No")
-
-# if "Props" in list_of_asset_dicts[0]['asset_name']:
-#     print("Yes")  
-# else:
-#     print("No")

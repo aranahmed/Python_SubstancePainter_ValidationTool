@@ -3,28 +3,34 @@ Module to import data from spreadsheet file.
 
 Extension : 
     - read excel document from given path
-
+    - convert the Excel data to JSON
 """
 import pandas as pd
 import json
+import os
 
-# url = "https://docs.google.com/spreadsheets/d/1wT5ecdxHLwECxJSBGp27qBcw6God1qa0/edit?usp=sharing&ouid=107471557719184358220&rtpof=true&sd=true"
+def save_excel_to_json():
 
-# Load the spreadsheet
-df = pd.read_excel('/Users/aranazadahmed/Documents/Adobe/Adobe Substance 3D Painter/python/modules/subp_data.xlsx', engine='openpyxl')
-# df = pd.read_excel(url, engine='openpyxl')
+    script_dir = os.path.dirname(os.path.abspath(__file__))
 
-#Drop rows where elements are NaN
-df = df.dropna(how='all')
+    excel_path = os.path.join(script_dir, 'subp_data.xlsx')
+    # Load the spreadsheet
+    df = pd.read_excel(excel_path, engine='openpyxl')
+    # df = pd.read_excel(url, engine='openpyxl')
 
-#Drop columns where elements are NaN
-df = df.dropna(how='all', axis=1)
+    #Drop rows where elements are NaN
+    df = df.dropna(how='all')
 
-print(df)
+    #Drop columns where elements are NaN
+    df = df.dropna(how='all', axis=1)
 
-# Convert to JSON
-data = df.to_dict(orient='records')
+    print(df)
 
-# Save to a JSON file
-with open('texture_set_name_data.json', 'w') as f:
-    json.dump(data, f)
+    # Convert to JSON
+    data = df.to_dict(orient='records')
+
+    # Save to a JSON file
+    with open('texture_set_name_data.json', 'w') as f:
+        json.dump(data, f)
+
+save_excel_to_json()
