@@ -10,13 +10,6 @@ from math import log2
 
 import os
 
-# for path in sys.path:
-#     print(f"Path: {path}")
-# sys.path.append('/Applications/Adobe Substance 3D Painter.app/Contents/Resources/python/modules', '/Users/aranazadahmed/Documents/Adobe/Adobe Substance 3D Painter/python/modules')
-
-#print (f"System Path is: {sys.path}")
-# import substance_painter
-
 # 3rd Party UI Library Import
 # from PySide2.QtWidgets import QtWidget
 
@@ -59,18 +52,7 @@ asset_dict = module_import_data_from_json.list_of_asset_dicts
 using_udims = False
 
 # Styling
-colors = ['Blue', 'Yellow', 'Green']
-
-# Lists to populate the Texset Rename editor : Extension Task - Make these lists be populated from a JSON / Spreadsheet thing
-# asset_types_acronyms = ['PROP', 'WPN', 'CHAR']
-
-# asset_detail_01_props = ['CHR','TBL', 'LMP', 'WIN']
-# asset_detail_01_wpns = ['SWD','BOW', 'RFL', 'EXP']
-# asset_detail_01_chars = ['PLR', 'ENM', 'CIV']
-
-# asset_detail_02_props = ['S','M', 'L']
-# asset_detail_02_wpns = ['COM','RAR', 'EPC']
-# asset_detail_02_chars = ['ML','FL', 'NB']
+# colors = ['Blue', 'Yellow', 'Green']
 
 class CustomExporter:
     def __init__(self):
@@ -83,8 +65,6 @@ class CustomExporter:
         self.connect_painter_events()
         self.show_ui_widgets()
         self.using_udims_check()
-        
-        # self.fill_texset_table()
         
         # Debugging setup : Dev use only
         is_debugging = False
@@ -277,14 +257,6 @@ class CustomExporter:
             settings = QtCore.QSettings()
             settings.setValue("dialogue_window_checkbox_state", QtCore.Qt.Unchecked) 
 
-    # def event_filter(self, source, event):
-    #     if event.type() == QEvent.ContextMenu and source is self.widget:
-    #         print(event)
-    #         print(source)
-    #         return True
-        
-    #     return super().event_filter(source, event)
-    
     def using_udims_check(self):
         all_texture_sets = substance_painter.textureset.all_texture_sets()
 
@@ -828,6 +800,7 @@ class CustomExporter:
         plugin = substance_painter_plugins.plugins.get("custom_exporter", None)
         if plugin is not None:
             # Refresh of widget
+            print("Plugin is not None")
             self.delete_widget()
             self.init_widget_window()
 
